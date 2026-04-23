@@ -1,51 +1,51 @@
 const express = require('express');
 const cors = require('cors');
-const fetch = require('node-fetch');
+const https = require('https');
 
 const app = express();
 
-const allowedOrigins = [
-  /\.github\.io$/,
-  /localhost/,
-  /127\.0\.0\.1/
-];
-
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (e.g. curl, Postman)
     if (!origin) return callback(null, true);
-    const allowed = allowedOrigins.some(pattern => pattern.test(origin));
-    if (allowed) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS: ' + origin));
+    if (/\.github\.io$/.test(origin) || /localhost/.test(origin)) {
+      return callback(null, true);
     }
+    callback(new Error('Not allowed by CORS: ' + origin));
   }
 }));
 
 app.use(express.json());
 
 app.post('/ask', async (req, res) => {
-  const envVars = process.env;
-  const key = envVars['GEMINI_API_KEY'];
+  const key = process.env['GEMINI_API_KEY'];
+  if (!key) return res.status(500).json({ error: 'API key not configured' });
 
-  if (!key) {
-    return res.status(500).json({ error: 'API key not configured on server' });
-  }
+  const body = JSON.stringify(req.body);
+  const options = {
+    hostname: 'generativelanguage.googleapis.com',
+    path: '/v1beta/models/gemini-2.5-flash:generateContent?key=' + key,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(body)
+    }
+  };
 
-  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + key;
-
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req.body)
+  const proxyReq = https.request(options, (proxyRes) => {
+    let data = '';
+    proxyRes.on('data', chunk => data += chunk);
+    proxyRes.on('end', () => {
+      try {
+        res.json(JSON.parse(data));
+      } catch (e) {
+        res.status(500).json({ error: 'Invalid response from Gemini' });
+      }
     });
-    const data = await response.json();
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  });
+
+  proxyReq.on('error', (e) => res.status(500).json({ error: e.message }));
+  proxyReq.write(body);
+  proxyReq.end();
 });
 
 app.get('/health', (_, res) => res.json({ status: 'ok' }));
