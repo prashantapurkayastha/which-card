@@ -3,7 +3,26 @@ const cors = require('cors');
 const fetch = require('node-fetch');
 
 const app = express();
-app.use(cors());
+
+const allowedOrigins = [
+  /\.github\.io$/,
+  /localhost/,
+  /127\.0\.0\.1/
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (e.g. curl, Postman)
+    if (!origin) return callback(null, true);
+    const allowed = allowedOrigins.some(pattern => pattern.test(origin));
+    if (allowed) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS: ' + origin));
+    }
+  }
+}));
+
 app.use(express.json());
 
 app.post('/ask', async (req, res) => {
