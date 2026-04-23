@@ -23,7 +23,7 @@ app.post('/ask', async (req, res) => {
   const body = JSON.stringify(req.body);
   const options = {
     hostname: 'generativelanguage.googleapis.com',
-    path: '/v1beta/models/gemini-2.5-flash:generateContent?key=' + key,
+    path: '/v1beta/models/gemini-2.5-flash:generateContent?key=' + encodeURIComponent(key),
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
