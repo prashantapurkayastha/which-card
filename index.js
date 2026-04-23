@@ -6,13 +6,15 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const GEMINI_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
-
 app.post('/ask', async (req, res) => {
+  const GEMINI_KEY = process.env.GEMINI_API_KEY;
+
   if (!GEMINI_KEY) {
     return res.status(500).json({ error: 'GEMINI_API_KEY not set on server' });
   }
+
+  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
+
   try {
     const response = await fetch(GEMINI_URL, {
       method: 'POST',
