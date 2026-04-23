@@ -7,16 +7,17 @@ app.use(cors());
 app.use(express.json());
 
 app.post('/ask', async (req, res) => {
-  const GEMINI_KEY = process.env.GEMINI_API_KEY;
+  const envVars = process.env;
+  const key = envVars['GEMINI_API_KEY'];
 
-  if (!GEMINI_KEY) {
-    return res.status(500).json({ error: 'GEMINI_API_KEY not set on server' });
+  if (!key) {
+    return res.status(500).json({ error: 'API key not configured on server' });
   }
 
-  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + key;
 
   try {
-    const response = await fetch(GEMINI_URL, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req.body)
@@ -31,4 +32,4 @@ app.post('/ask', async (req, res) => {
 app.get('/health', (_, res) => res.json({ status: 'ok' }));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Proxy running on port ${PORT}`));
+app.listen(PORT, () => console.log('Proxy running on port ' + PORT));
