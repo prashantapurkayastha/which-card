@@ -35,11 +35,8 @@ app.post('/ask', async (req, res) => {
     let data = '';
     proxyRes.on('data', chunk => data += chunk);
     proxyRes.on('end', () => {
-      try {
-        res.json(JSON.parse(data));
-      } catch (e) {
-        res.status(500).json({ error: 'Invalid response from Gemini' });
-      }
+      try { res.json(JSON.parse(data)); }
+      catch (e) { res.status(500).json({ error: 'Invalid response from Gemini' }); }
     });
   });
 
@@ -52,3 +49,5 @@ app.get('/health', (_, res) => res.json({ status: 'ok' }));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log('Proxy running on port ' + PORT));
+
+module.exports = app;
