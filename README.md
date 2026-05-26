@@ -1,8 +1,10 @@
 # Card Advisor — Proxy
 
-A minimal Node.js API that proxies requests from [Card Advisor](https://github.com/prashantapurkayastha/card-advisor) to the Gemini API.
+A minimal Vercel serverless function that proxies requests from [Card Advisor](https://github.com/prashantapurkayastha/card-advisor) to the Gemini API.
 
 One reason this exists as a separate service: the frontend is a static HTML file on GitHub Pages. Calling Gemini directly from the browser would expose the API key in client-side code. This proxy holds the key in an environment variable and forwards requests server-side.
+
+**Live at:** `https://which-card-nine.vercel.app`
 
 ---
 
@@ -43,37 +45,51 @@ Returns `{ "status": "ok" }`. Used to verify the service is running.
 
 ---
 
-## Deploy to Vercel
-
-```bash
-npm i -g vercel
-vercel
-```
-
-Add the environment variable in the Vercel dashboard:
+## Structure
 
 ```
-GEMINI_API_KEY = your_key_here
+which-card/
+├── api/
+│   ├── ask.js        ← POST /ask handler
+│   └── health.js     ← GET /health handler
+├── vercel.json       ← route rewrites
+└── package.json
 ```
 
-Or via CLI:
-```bash
-vercel env add GEMINI_API_KEY
-```
+Vercel automatically treats any file inside `/api` as a serverless function. No Express, no server process, no port management.
+
+---
+
+## Deploy your own
+
+1. Fork this repo
+2. Import it at [vercel.com](https://vercel.com) — zero config needed
+3. Add your API key under **Settings → Environment Variables**:
+   ```
+   GEMINI_API_KEY = your_key_here
+   ```
+4. Redeploy to pick up the env var
+
+Get a Gemini API key at [aistudio.google.com](https://aistudio.google.com).
 
 ---
 
 ## Running locally
 
 ```bash
-npm install
-GEMINI_API_KEY=your_key_here node index.js
+npm install -g vercel
+vercel dev
 ```
 
-The server starts on port 3000 by default. Test it:
+Or without the Vercel CLI:
 
 ```bash
-curl http://localhost:3000/health
+# api/ask.js and api/health.js are plain Node.js modules
+# you can test them directly with a minimal wrapper
+GEMINI_API_KEY=your_key node -e "
+  const handler = require('./api/ask');
+  // handler expects (req, res) — use with any http server
+"
 ```
 
 ---
@@ -83,21 +99,21 @@ curl http://localhost:3000/health
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `GEMINI_API_KEY` | Yes | Your Google AI Studio API key |
-| `PORT` | No | Port to listen on (default: 3000) |
-
-Get a Gemini API key at [aistudio.google.com](https://aistudio.google.com).
 
 ---
 
 ## CORS
 
-The proxy allows requests from any `*.github.io` domain and localhost. If you fork the frontend and host it elsewhere, add your domain to the `allowedOrigins` array in `index.js`.
+The proxy allows requests from any origin (`*`). If you want to lock it down to your specific GitHub Pages domain, update the `Access-Control-Allow-Origin` header in `api/ask.js`:
+
+```js
+res.setHeader('Access-Control-Allow-Origin', 'https://yourusername.github.io');
+```
 
 ---
 
 ## Tech stack
 
-- Node.js
-- Express
-- Node's built-in `https` module (no external fetch dependency)
-- Deployed on Vercel free tier
+- Node.js serverless functions (Vercel)
+- Node's built-in `https` module — no dependencies
+- Free tier, no cold start issues for this workload
