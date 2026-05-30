@@ -1,21 +1,72 @@
 const https = require('https');
 
+// Schema matches what the frontend's geminiRecommend() expects to parse
+const RESPONSE_SCHEMA = {
+  type: "object",
+  properties: {
+    primary: {
+      type: "object",
+      properties: {
+        card: { type: "string" },
+        rate: { type: "number" },
+        reason: { type: "string" },
+        tags: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              text: { type: "string" },
+              type: { type: "string", enum: ["good", "warning"] }
+            },
+            required: ["text", "type"]
+          }
+        }
+      },
+      required: ["card", "rate", "reason", "tags"]
+    },
+    runner_up: {
+      type: "object",
+      properties: {
+        card: { type: "string" },
+        rate: { type: "number" },
+        reason: { type: "string" }
+      },
+      required: ["card", "rate", "reason"]
+    },
+    tip: { type: "string" }
+  },
+  required: ["primary", "runner_up", "tip"]
+};
+
 module.exports = async (req, res) => {
-  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const key = process.env['GEMINI_API_KEY'];
   if (!key) return res.status(500).json({ error: 'API key not configured' });
 
-  const body = JSON.stringify(req.body);
+  // Inject generationConfig server-side so the frontend stays unchanged.
+  // Forces JSON output matching our schema, caps tokens, and uses low thinking budget for speed.
+  const payload = {
+    ...req.body,
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: RESPONSE_SCHEMA,
+      maxOutputTokens: 400,
+      temperature: 0.4,
+      thinkingConfig: { thinkingBudget: 0 }  // disable thinking for Flash-Lite-style speed
+    }
+  };
+
+  const body = JSON.stringify(payload);
+
   const options = {
     hostname: 'generativelanguage.googleapis.com',
-    path: '/v1beta/models/gemini-2.5-flash:generateContent?key=' + encodeURIComponent(key),
+    // Switched from gemini-2.5-flash → gemini-2.5-flash-lite (~2-3x faster for simple JSON tasks)
+    path: '/v1beta/models/gemini-2.5-flash-lite:generateContent?key=' + encodeURIComponent(key),
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
